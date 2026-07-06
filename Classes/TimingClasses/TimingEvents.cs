@@ -15,7 +15,6 @@ using System;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using Godot;
-using NAudio.MediaFoundation;
 using Tempora.Classes.Utility;
 
 namespace Tempora.Classes.TimingClasses;

@@ -3,8 +3,6 @@ using Spectrogram;
 using Tempora.Classes.DataHelpers;
 using System.Collections.Generic;
 using Tempora.Classes.Audio;
-using System.Drawing.Imaging;
-using System.Drawing;
 using Tempora.Classes.Utility;
 
 

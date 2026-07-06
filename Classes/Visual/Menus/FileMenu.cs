@@ -12,7 +12,6 @@
 // Full license text is available at: https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode
 
 using Godot;
-using NAudio.SoundFont;
 using System;
 using System.Linq;
 using Tempora.Classes.Audio;

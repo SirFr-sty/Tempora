@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing.Imaging;
-using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,11 +25,17 @@ public static class SpectrogramHelper
     int targetHeight,
     int targetWidth)
     {
-        int sliceWidth = xEnd - xStart;
+        targetHeight = Math.Max(targetHeight, 1);
+        targetWidth = Math.Max(targetWidth, 1);
         int sliceHeight = fullImage.GetHeight();
+        int imageWidth = fullImage.GetWidth();
 
-        if (xStart < 0 || xEnd > fullImage.GetWidth() || xStart >= xEnd)
-            throw new ArgumentException("Invalid slice bounds");
+        if (imageWidth == 0 || sliceHeight == 0)
+            throw new ArgumentException("Cannot slice an empty image.");
+
+        xStart = Math.Clamp(xStart, 0, imageWidth - 1);
+        xEnd = Math.Clamp(xEnd, xStart + 1, imageWidth);
+        int sliceWidth = xEnd - xStart;
 
         // Create image with the slice
         Godot.Image sliceImage = Godot.Image.CreateEmpty(sliceWidth, sliceHeight, false, fullImage.GetFormat());
@@ -70,68 +74,40 @@ public static class SpectrogramHelper
         return spectrogramGenerator;
     }
 
-    public static System.Drawing.Bitmap GenerateBitmap(SpectrogramGenerator spectrogramGenerator, Colormap colormap, int intensity = 5, bool dB = true)
-    {
-        var ffts = spectrogramGenerator.GetFFTs();
-        return Spectrogram.Image.GetBitmap(ffts, colormap, intensity, dB);
-    }
-
-    public static Godot.Image ConvertBitmapToGodotImage(System.Drawing.Bitmap bitmap)
-    {
-        int width = bitmap.Width;
-        int height = bitmap.Height;
-
-        // Lock the bitmap's data
-        BitmapData bmpData = bitmap.LockBits(
-            new Rectangle(0, 0, width, height),
-            ImageLockMode.ReadOnly,
-            PixelFormat.Format32bppArgb); // Ensure 32-bit ARGB format
-
-        // Prepare buffer
-        int bufferSize = bmpData.Stride * bmpData.Height;
-        byte[] buffer = new byte[bufferSize];
-
-        // Copy bitmap data to buffer
-        System.Runtime.InteropServices.Marshal.Copy(bmpData.Scan0, buffer, 0, bufferSize);
-
-        // Unlock bitmap
-        bitmap.UnlockBits(bmpData);
-
-        // Convert ARGB to RGBA (Godot uses RGBA order)
-        for (int i = 0; i < bufferSize; i += 4)
-        {
-            byte a = buffer[i + 3];  // Alpha
-            byte r = buffer[i + 2];  // Red
-            byte g = buffer[i + 1];  // Green
-            byte b = buffer[i];      // Blue
-
-            buffer[i] = r;
-            buffer[i + 1] = g;
-            buffer[i + 2] = b;
-            buffer[i + 3] = a;
-        }
-
-        // Create a Godot Image and populate it with the data
-        Godot.Image gdImage = Godot.Image.CreateFromData(width, height, false, Godot.Image.Format.Rgba8, buffer);
-
-        return gdImage;
-    }
-
-    public static ImageTexture ConvertBitmapToImageTexture(System.Drawing.Bitmap bitmap)
-    {
-        Godot.Image gdImage = ConvertBitmapToGodotImage(bitmap);
-        ImageTexture texture = ImageTexture.CreateFromImage(gdImage);
-        return texture;
-    }
-
     public static ImageTexture GenerateTexture(SpectrogramGenerator spectrogramGenerator, Colormap colormap, int intensity = 5, bool dB = true)
     {
-        var bitmap = GenerateBitmap(spectrogramGenerator, colormap, intensity, dB);
-        return ConvertBitmapToImageTexture(bitmap);
+        return ImageTexture.CreateFromImage(GenerateGodotImage(spectrogramGenerator, colormap, intensity, dB));
     }
 
     public static Godot.Image GenerateGodotImage(SpectrogramGenerator spectrogramGenerator, Colormap colormap, int intensity = 5, bool dB = true)
     {
-        return ConvertBitmapToGodotImage(GenerateBitmap(spectrogramGenerator, colormap, intensity, dB));
+        var ffts = spectrogramGenerator.GetFFTs();
+        if (ffts.Count == 0)
+            throw new ArgumentException("Not enough data in FFTs to generate an image yet.");
+
+        int width = ffts.Count;
+        int height = ffts[0].Length;
+        byte[] rgba = new byte[width * height * 4];
+
+        Parallel.For(0, width, x =>
+        {
+            for (int sourceY = 0; sourceY < height; sourceY++)
+            {
+                double value = ffts[x][sourceY];
+                if (dB)
+                    value = 20 * Math.Log10(value + 1);
+
+                byte paletteIndex = (byte)Math.Clamp(value * intensity, 0, 255);
+                var (r, g, b) = colormap.GetRGB(paletteIndex);
+                int destinationY = height - 1 - sourceY;
+                int pixel = (destinationY * width + x) * 4;
+                rgba[pixel] = r;
+                rgba[pixel + 1] = g;
+                rgba[pixel + 2] = b;
+                rgba[pixel + 3] = 255;
+            }
+        });
+
+        return Godot.Image.CreateFromData(width, height, false, Godot.Image.Format.Rgba8, rgba);
     }
 }

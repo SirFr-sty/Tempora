@@ -15,6 +15,7 @@ using System;
 using System.IO;
 using Godot;
 using NAudio.Wave;
+using NLayer.NAudioSupport;
 using NAudio.Vorbis;
 using System.Runtime.CompilerServices;
 using System.Linq;
@@ -71,7 +72,7 @@ public partial class AudioDataHelper
         out int sampleRate, out int numRawBytes, out int startSilenceSamples)
     {
         using var mp3FileMemoryStream = new MemoryStream(mp3File);
-        using var reader = new Mp3FileReader(mp3FileMemoryStream);
+        using var reader = CreateMp3Reader(mp3FileMemoryStream);
         DecodeMp3(reader, out shortsMixed_byte, out channels, out sampleRate, out numRawBytes, out startSilenceSamples);
     }
 
@@ -81,11 +82,17 @@ public partial class AudioDataHelper
     public static void DecodeMp3(string mp3Path, out byte[] shortsMixed_byte, out int channels, 
         out int sampleRate, out int numRawBytes, out int startSilenceSamples)
     {
-        using var reader = new Mp3FileReader(mp3Path);
+        using var reader = CreateMp3Reader(mp3Path);
         DecodeMp3(reader, out shortsMixed_byte, out channels, out sampleRate, out numRawBytes, out startSilenceSamples);
     }
 
-    public static void DecodeMp3(Mp3FileReader reader, out byte[] shortsMixed_byte, out int channels, 
+    private static Mp3FileReaderBase CreateMp3Reader(Stream stream)
+        => new(stream, new Mp3FileReaderBase.FrameDecompressorBuilder(format => new Mp3FrameDecompressor(format)));
+
+    private static Mp3FileReaderBase CreateMp3Reader(string path)
+        => new(path, new Mp3FileReaderBase.FrameDecompressorBuilder(format => new Mp3FrameDecompressor(format)));
+
+    public static void DecodeMp3(Mp3FileReaderBase reader, out byte[] shortsMixed_byte, out int channels,
         out int sampleRate, out int numRawBytes, out int startSilenceSamples)
     {
         sampleRate = reader.Mp3WaveFormat.SampleRate;
@@ -108,8 +115,17 @@ public partial class AudioDataHelper
             startSilenceSamples = encoderDelaySamples + decoderDelaySamples + 1;
         }
 
-        shortsMixed_byte = new byte[reader.Length];
-        numRawBytes = reader.Read(shortsMixed_byte, 0, shortsMixed_byte.Length * channels);
+        using var decodedStream = new MemoryStream();
+        byte[] readBuffer = new byte[64 * 1024];
+        int bytesRead;
+        while ((bytesRead = reader.Read(readBuffer, 0, readBuffer.Length)) > 0)
+            decodedStream.Write(readBuffer, 0, bytesRead);
+
+        byte[] floatBytes = decodedStream.ToArray();
+        float[] floatSamples = new float[floatBytes.Length / sizeof(float)];
+        Buffer.BlockCopy(floatBytes, 0, floatSamples, 0, floatBytes.Length);
+        shortsMixed_byte = ConvertToPCM8(floatSamples);
+        numRawBytes = shortsMixed_byte.Length;
     }
 
     /// <summary>
