@@ -21,7 +21,7 @@ public partial class GridLine : Line2D
 {
     public int DivisionIndex;
     public int Divisor;
-    public int[] TimeSignature;
+    public int[] TimeSignature = [4, 4];
     public float RelativeMeasurePosition;
 
     private float audioHeight;
@@ -34,7 +34,16 @@ public partial class GridLine : Line2D
     private Color color_16 = new Color(0.7f, 0, 0, 1f);
     private Color color_12 = new Color("7572ff");
 
+    public GridLine()
+    {
+    }
+
     public GridLine(int[] timeSignature, int divisor, int index, float audioHeight)
+    {
+        Configure(timeSignature, divisor, index, audioHeight);
+    }
+
+    public void Configure(int[] timeSignature, int divisor, int index, float audioHeight)
     {
         TimeSignature = timeSignature;
         Divisor = divisor;

@@ -109,6 +109,30 @@ public partial class VisualTimingPoint : Control
         lineDefaultWidth = OffsetLine.Width;
     }
 
+    public override void _ExitTree()
+    {
+        if (GlobalEvents.Instance != null)
+        {
+            GlobalEvents.Instance.MeasurePositionChangeRejected -= OnMeasurePositionChangeRejected;
+            GlobalEvents.Instance.TimingPointNearestCursorChanged -= OnTimingPointNearestCursorChanged;
+        }
+
+        if (TimingPointSelection.Instance != null)
+            TimingPointSelection.Instance.SelectionChanged -= OnSelectionChanged;
+
+        if (BpmLabel != null)
+            BpmLabel.DoubleClicked -= OnBPMLabelDoubleClicked;
+        if (BpmEdit != null)
+            BpmEdit.BpmSubmitted -= OnBpmSubmitted;
+        if (flashTimer != null)
+            flashTimer.Timeout -= OnFlashTimerTimeout;
+
+        VisibilityChanged -= OnVisibilityChanged;
+
+        if (timingPoint != null)
+            timingPoint.ChangeFinalized -= OnTimingPointChanged;
+    }
+
     public override void _Input(InputEvent @event)
     {
         if (!Visible)

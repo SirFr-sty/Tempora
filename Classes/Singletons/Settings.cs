@@ -13,6 +13,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Godot;
 using GD = Tempora.Classes.DataHelpers.GD;
@@ -43,6 +44,7 @@ public partial class Settings : Node
     private int beatsaberExportFormat = 4;
 
     public static Settings Instance { get => instance; set => instance = value; }
+    public static string DefaultProjectFilesDirectory => Path.Combine(OS.GetSystemDir(OS.SystemDir.Documents), "Tempora");
     public static readonly Dictionary<int, int> GridSliderToDivisorDict = new() {
         { 1, 1 },
         { 2, 2 },
@@ -79,7 +81,9 @@ public partial class Settings : Node
     #region Files settings
     public string ProjectFilesDirectory
     {
-        get => projectFilesDirectory;
+        get => string.IsNullOrWhiteSpace(projectFilesDirectory)
+            ? DefaultProjectFilesDirectory
+            : projectFilesDirectory;
         set
         {
             projectFilesDirectory = value;

@@ -70,6 +70,8 @@ public partial class Timing : Node, IMementoOriginator
         {
             if (timingPoints == value)
                 return;
+            foreach (TimingPoint timingPoint in timingPoints)
+                UnsubscribeFromEvents(timingPoint);
             timingPoints = value;
             ReSubscribe();
             GlobalEvents.Instance.InvokeEvent(nameof(GlobalEvents.TimingChanged));

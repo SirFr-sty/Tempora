@@ -55,6 +55,19 @@ public partial class AudioBlock : Control
         timeSignatureStepper.TimeSignatureSubmitted += OnTimingSignatureSubmitted;
     }
 
+    public override void _ExitTree()
+    {
+        if (GlobalEvents.Instance != null)
+            GlobalEvents.Instance.TimingChanged -= OnTimingChanged;
+
+        VisibilityChanged -= OnVisibilityChanged;
+
+        if (timeSignatureLineEdit != null)
+            timeSignatureLineEdit.TimeSignatureSubmitted -= OnTimingSignatureSubmitted;
+        if (timeSignatureStepper != null)
+            timeSignatureStepper.TimeSignatureSubmitted -= OnTimingSignatureSubmitted;
+    }
+
     private void OnTimingChanged(object? sender, EventArgs e)
     {
         if (!Visible || Timing.Instance.IsBatchOperationInProgress)

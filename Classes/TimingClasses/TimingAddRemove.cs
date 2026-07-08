@@ -130,6 +130,7 @@ public partial class Timing
             || (nextTimingPoint?.MeasurePosition is float nextMeasurePosition && Mathf.Abs(nextMeasurePosition - (float)timingPoint.MeasurePosition) < 0.015f) // Too close to next timing point
            )
         {
+            UnsubscribeFromEvents(timingPoint);
             TimingPoints.Remove(timingPoint);
             timingPoint = null;
             //GD.Print("Timing Point refused to add!");
@@ -147,6 +148,7 @@ public partial class Timing
     {
         TimingPoint? previousTimingPoint = GetPreviousTimingPoint(timingPoint);
 
+        UnsubscribeFromEvents(timingPoint);
         timingPoint.QueueFree();
         TimingPoints.Remove(timingPoint);
 
@@ -187,6 +189,7 @@ public partial class Timing
         for (int i = indexFrom; i < indexTo; i++)
         {
             TimingPoint timingPoint = TimingPoints[i];
+            UnsubscribeFromEvents(timingPoint);
             timingPoint.QueueFree();
         }
         TimingPoints.RemoveRange(indexFrom, indexTo - indexFrom);

@@ -32,7 +32,7 @@ PreviewTime: -1
 Countdown: 1
 SampleSet: Soft
 StackLeniency: 0.7
-Mode: 0
+Mode: 3
 LetterboxInBreaks: 0
 WidescreenStoryboard: 0
 
@@ -95,15 +95,15 @@ SliderTickRate:1
     {
         var newTiming = Timing.CloneAndParseForOsu(timing, audioFile);
         if (Settings.Instance.PreventDoubleBarlines)
-            FixBpmsToEnsureProperLineups(newTiming);
-        string timingPointsData = TimingToDotOsuTimingPoints(newTiming);
+            FixBpmsToEnsureProperLineups(newTiming, audioFile, exportOffsetMs);
+        string timingPointsData = TimingToDotOsuTimingPoints(newTiming, audioFile);
         string extension = audioFile.Extension;
         string dotOsuUnformatted = $"{DefaultDotOsuFormer}{timingPointsData}{DefaultDotOsuLatter}";
         string dotOsu = String.Format(dotOsuUnformatted, extension);
         return dotOsu;
     }
 
-    public string TimingToDotOsuTimingPoints(Timing timing)
+    public string TimingToDotOsuTimingPoints(Timing timing, AudioFile audioFile)
     {
         if (timing.TimingPoints == null)
             throw new NullReferenceException("timing.TimingPoints was null");
@@ -114,7 +114,7 @@ SliderTickRate:1
         {
             var timingPoint = timing.TimingPoints[i];
             TimingPoint? previousTimingPoint = i > 0 ? timing.TimingPoints?[i - 1] : null;
-            result += TimingPointToDotOsuLine(timingPoint);
+            result += TimingPointToDotOsuLine(timingPoint, audioFile);
         }
 
         return result;
@@ -122,9 +122,9 @@ SliderTickRate:1
 
     private static bool ShouldOmitBarline(TimingPoint timingPoint) => Settings.Instance.OmitBarlines ? timingPoint.MeasurePosition % 1 != 0 : false;
 
-    private string TimingPointToDotOsuLine(TimingPoint timingPoint)
+    private string TimingPointToDotOsuLine(TimingPoint timingPoint, AudioFile audioFile)
     {
-        string offsetMs = ((int)(timingPoint.Offset * 1000) + exportOffsetMs).ToString();
+        string offsetMs = GetExportOffsetMs(timingPoint, audioFile, exportOffsetMs).ToString();
         string msPerBeat = (timingPoint.BeatLengthSec * 1000).ToString(CultureInfo.InvariantCulture);
         string beatsInMeasure = timingPoint.TimeSignature[0].ToString();
         bool omit = ShouldOmitBarline(timingPoint);
@@ -132,7 +132,10 @@ SliderTickRate:1
         return $"{offsetMs},{msPerBeat},{beatsInMeasure},2,0,80,1,{effects}\n";
     }
 
-    private static void FixBpmsToEnsureProperLineups(Timing timing)
+    private static int GetExportOffsetMs(TimingPoint timingPoint, AudioFile audioFile, int exportOffsetMs)
+        => (int)(audioFile.SampleTimeToPlaybackTime(timingPoint.Offset) * 1000) + exportOffsetMs;
+
+    private static void FixBpmsToEnsureProperLineups(Timing timing, AudioFile audioFile, int exportOffsetMs)
     {
         timing.ShouldHandleTimingPointChanges = false;
         for (int i = 0; i < timing.TimingPoints!.Count; i++)
@@ -143,11 +146,11 @@ SliderTickRate:1
             if (previousTimingPoint == null) 
                 continue;
 
-            float previousOffsetMsRounded = (int)(previousTimingPoint.Offset * 1000);
+            float previousOffsetMsRounded = GetExportOffsetMs(previousTimingPoint, audioFile, exportOffsetMs);
             float measureDifference = (float)(timingPoint.MeasurePosition! - previousTimingPoint.MeasurePosition!);
             float timeDifference = measureDifference / previousTimingPoint.MeasuresPerSecond;
             float previousWhiteLineOffsetMsRounded = (int)(previousOffsetMsRounded + timeDifference * 1000);
-            float offsetMsRounded = (int)(timingPoint.Offset * 1000);
+            float offsetMsRounded = GetExportOffsetMs(timingPoint, audioFile, exportOffsetMs);
             if (offsetMsRounded <= previousWhiteLineOffsetMsRounded)
                 continue;
 

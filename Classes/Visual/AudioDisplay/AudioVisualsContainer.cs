@@ -96,6 +96,18 @@ public partial class AudioVisualsContainer : VBoxContainer
         GlobalEvents.Instance.TimingPointAdded += OnTimingPointAdded;
     }
 
+    public override void _ExitTree()
+    {
+        MouseExited -= OnMouseExited;
+        MusicPlayer.Paused -= OnMusicPaused;
+        MusicPlayer.Finished -= OnMusicFinished;
+
+        if (GlobalEvents.Instance != null)
+            GlobalEvents.Instance.TimingPointAdded -= OnTimingPointAdded;
+
+        DisconnectAudioBlockSignals();
+    }
+
     // Called every frame. 'delta' is the elapsed time since the previous frame.
     public override void _Process(double delta)
     {
@@ -131,7 +143,11 @@ public partial class AudioVisualsContainer : VBoxContainer
     public void CreateBlocks()
     {
         foreach (Node? child in GetChildren())
+        {
+            if (child is AudioBlock audioBlock)
+                DisconnectAudioBlockSignals(audioBlock);
             child.QueueFree();
+        }
         AudioBlocks.Clear();
 
         int measurePositionStart = NominalMeasurePositionStartForTopBlock;
@@ -163,6 +179,18 @@ public partial class AudioVisualsContainer : VBoxContainer
         }
 
         UpdateNumberOfVisibleBlocks();
+    }
+
+    private void DisconnectAudioBlockSignals()
+    {
+        foreach (AudioBlock audioBlock in GetChildren().OfType<AudioBlock>())
+            DisconnectAudioBlockSignals(audioBlock);
+    }
+
+    private void DisconnectAudioBlockSignals(AudioBlock audioBlock)
+    {
+        audioBlock.AudioDisplayPanel.SeekPlaybackTime -= OnSeekPlaybackTime;
+        audioBlock.AudioDisplayPanel.AttemptToAddTimingPoint -= OnAttemptToAddTimingPoint;
     }
 
     public void UpdateNumberOfVisibleBlocks()

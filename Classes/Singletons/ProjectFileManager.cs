@@ -92,6 +92,7 @@ public partial class ProjectFileManager : Node
         switch (config)
         {
             case SaveConfig.project:
+                EnsureDirectoryExists(Settings.Instance.ProjectFilesDirectory);
                 SaveFileDialog.CurrentDir = Settings.Instance.ProjectFilesDirectory;
                 SaveFileDialog.Title = "Save Project";
                 break;
@@ -152,8 +153,16 @@ public partial class ProjectFileManager : Node
     #region Load Dialog
     public void LoadFileDialogPopup()
     {
-        LoadFileDialog.CurrentDir = Settings.Instance.ProjectFilesDirectory;
+        EnsureDirectoryExists(Settings.DefaultProjectFilesDirectory);
+        LoadFileDialog.CurrentDir = Settings.DefaultProjectFilesDirectory;
         LoadFileDialog.Popup();
+    }
+
+    private static void EnsureDirectoryExists(string directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+            return;
+        DirAccess.MakeDirRecursiveAbsolute(directoryPath);
     }
 
     private void OnLoadFilePathSelected(string selectedPath)

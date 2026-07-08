@@ -26,9 +26,17 @@ public partial class Timing
     {
         if (timingPoint == null)
             throw new NullReferenceException($"{nameof(timingPoint)} was null");
+        UnsubscribeFromEvents(timingPoint);
         timingPoint.AttemptDelete += OnTimingPointDeleteAttempt;
         timingPoint.ChangeFinalized += OnTimingPointChanged;
         timingPoint.PropertyChanged += OnTimingPointPropertyChanged;
+    }
+
+    private void UnsubscribeFromEvents(TimingPoint timingPoint)
+    {
+        timingPoint.AttemptDelete -= OnTimingPointDeleteAttempt;
+        timingPoint.ChangeFinalized -= OnTimingPointChanged;
+        timingPoint.PropertyChanged -= OnTimingPointPropertyChanged;
     }
 
     private void ReSubscribe()

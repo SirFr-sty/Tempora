@@ -141,6 +141,28 @@ public partial class AudioDisplayPanel : Control
         SpamPlaybackLoopTimer.TimeOut += OnSpamPlaybackLoopTimerTimeOut;
     }
 
+    public override void _ExitTree()
+    {
+        if (GlobalEvents.Instance != null)
+        {
+            GlobalEvents.Instance.SettingsChanged -= OnSettingsChanged;
+            GlobalEvents.Instance.SelectedPositionChanged -= OnSelectedPositionChanged;
+            GlobalEvents.Instance.AudioVisualsContainerScrolled -= OnScrolled;
+            GlobalEvents.Instance.AudioFileChanged -= OnAudioFileChanged;
+            GlobalEvents.Instance.SpectrogramUpdated -= OnSpectrogramUpdated;
+            GlobalEvents.Instance.TimingChanged -= OnTimingChanged;
+        }
+
+        if (TimingPointSelection.Instance != null)
+            TimingPointSelection.Instance.SelectorChanged -= OnSelectorChanged;
+
+        MouseEntered -= OnMouseEntered;
+        MouseExited -= OnMouseExited;
+
+        if (SpamPlaybackLoopTimer != null)
+            SpamPlaybackLoopTimer.TimeOut -= OnSpamPlaybackLoopTimerTimeOut;
+    }
+
     public override void _GuiInput(InputEvent @event)
     {
         if (@event is not InputEventMouse mouseEvent)
@@ -629,22 +651,23 @@ public partial class AudioDisplayPanel : Control
 
     public void CreateGridLines()
     {
-        foreach (Node? child in GridFolder.GetChildren())
-            child.QueueFree();
+        var gridLines = GridFolder.GetChildren().OfType<GridLine>().ToList();
+        foreach (GridLine gridLine in gridLines)
+            gridLine.Visible = false;
 
         int divisor = Settings.Instance.GridDivisor;
         int[] timeSignature = Timing.Instance.GetTimeSignature(NominalMeasurePosition - 1);
 
         int measureOffset = -1;
         int divisionIndex = 0;
+        int lineIndex = 0;
         while (divisionIndex < 50)
         {
-            //using (
-            GridLine gridLine = GetGridLine(timeSignature, divisor, divisionIndex, measureOffset); //)
-                                                                                                   //{
+            int currentDivisionIndex = divisionIndex;
+            float relativeMeasurePosition = Timing.GetRelativeNotePosition(timeSignature, divisor, currentDivisionIndex);
             divisionIndex++;
 
-            float measurePosition = gridLine.RelativeMeasurePosition + NominalMeasurePosition + measureOffset;
+            float measurePosition = relativeMeasurePosition + NominalMeasurePosition + measureOffset;
 
             if (measurePosition >= NominalMeasurePosition && measureOffset == -1)
             {
@@ -669,16 +692,23 @@ public partial class AudioDisplayPanel : Control
 
             timeSignature = Timing.Instance.GetTimeSignature(measurePosition);
 
+            GridLine gridLine = GetGridLine(timeSignature, divisor, currentDivisionIndex, measureOffset, gridLines, lineIndex);
             gridLine.ZIndex = 0;
 
-            GridFolder.AddChild(gridLine);
-            //}
+            if (gridLine.GetParent() == null)
+                GridFolder.AddChild(gridLine);
+            gridLine.Visible = true;
+            lineIndex++;
         }
     }
 
-    public GridLine GetGridLine(int[] timeSignature, int divisor, int index, int measureOffset)
+    public GridLine GetGridLine(int[] timeSignature, int divisor, int index, int measureOffset, List<GridLine>? reusableGridLines = null, int reusableIndex = -1)
     {
-        var gridLine = new GridLine(timeSignature, divisor, index, Size.Y);
+        GridLine gridLine = reusableGridLines != null && reusableIndex >= 0 && reusableIndex < reusableGridLines.Count
+            ? reusableGridLines[reusableIndex]
+            : new GridLine();
+
+        gridLine.Configure(timeSignature, divisor, index, Size.Y);
 
         float offset = Settings.Instance.DownbeatPositionOffset;
         float margin = Settings.Instance.MeasureOverlap;
